@@ -77,7 +77,12 @@ main { margin-top: 1.6rem; }
 .seg button { font-family: var(--sans); font-weight: 500; font-size: .8rem; padding: .68rem .2rem;
   background: var(--ink-2); color: var(--dim); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
 .seg button.on { background: var(--amber-soft); color: var(--amber); border-color: var(--amber); font-weight: 700; }
+.seg button:disabled { opacity: .3; cursor: not-allowed; }
 .seg .pat-en { display: block; font-family: var(--mono); font-size: .55rem; letter-spacing: .12em; margin-top: .2rem; opacity: .75; }
+#nballs { grid-template-columns: repeat(5, 1fr); }
+#ballcolor { grid-template-columns: repeat(2, 1fr); }
+#pattern button { white-space: normal; line-height: 1.35; font-size: .72rem; padding: .6rem .15rem; }
+.seg-note { font-size: .62rem; color: var(--faint); margin: .4rem 0 0; line-height: 1.6; }
 .row { display: flex; gap: .6rem; align-items: center; }
 .range-in { flex: 1; display: flex; align-items: center; gap: .4rem; background: var(--ink-2);
   border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem; }
@@ -332,12 +337,29 @@ footer { text-align: center; margin-top: 2.2rem; font-family: var(--mono); font-
           <span class="fname" id="drop-name"></span>
         </label>
 
+        <p class="field-label">ボールの数</p>
+        <div class="seg" id="nballs">
+          <button data-v="3" class="on">3</button>
+          <button data-v="4">4</button>
+          <button data-v="5">5</button>
+          <button data-v="6">6</button>
+          <button data-v="7">7</button>
+        </div>
+
         <p class="field-label">パターン</p>
         <div class="seg" id="pattern">
-          <button data-v="cascade" class="on">カスケード<span class="pat-en">crossing</span></button>
-          <button data-v="sync">シンク<span class="pat-en">together</span></button>
-          <button data-v="async">アシンク<span class="pat-en">columns</span></button>
+          <button data-v="cascade" class="on">カスケード<span class="pat-en">cascade</span></button>
+          <button data-v="sync">シンクロファウンテン<span class="pat-en">sync fountain</span></button>
+          <button data-v="async">アシンクロファウンテン<span class="pat-en">async fountain</span></button>
         </div>
+        <p class="seg-note">奇数＝カスケード／偶数＝ファウンテン（球数に合わせて選択肢が絞られます）</p>
+
+        <p class="field-label">ボールの色</p>
+        <div class="seg" id="ballcolor">
+          <button data-v="white" class="on">白<span class="pat-en">white</span></button>
+          <button data-v="red">赤<span class="pat-en">red</span></button>
+        </div>
+        <p class="seg-note">ボールの色を指定すると検出精度が上がります（背景と違う色を推奨）</p>
 
         <p class="field-label">解析範囲（秒・空欄で全体）</p>
         <div class="row">
@@ -370,7 +392,7 @@ footer { text-align: center; margin-top: 2.2rem; font-family: var(--mono); font-
           <li><span class="ic">🧍</span><span><b>正面から</b>、肩と手首が写るように。パターンの<b>頂点まで画面に収める</b>。</span></li>
           <li><span class="ic">🎨</span><span>ボールは<b>背景と違う色</b>に、明るい場所で。白ボール×白い壁は検出できません。</span></li>
           <li><span class="ic">⏱️</span><span><b>10〜15秒</b>・<b>1080p</b>ほどで軽めに。安定して続く区間を撮ると実力値に近づきます。</span></li>
-          <li><span class="ic">🤹</span><span>解析したい<b>パターンを選択</b>（カスケード / シンク / アシンク）。</span></li>
+          <li><span class="ic">🤹</span><span>ボールの数・色・<b>パターンを選択</b>（カスケード / シンクロファウンテン / アシンクロファウンテン）。</span></li>
           <li><span class="ic">🔄</span><span>できれば<b>背面カメラ</b>で。自撮りの左右反転だと左右が入れ替わることがあります。</span></li>
         </ul>
         <p class="foot">mov / mp4 / HEVC 対応。音声・位置情報は解析時に自動で取り除かれます。</p>
@@ -449,12 +471,42 @@ const keyed = (url) => (authRequired && labKey() ? url + "?key=" + encodeURIComp
 
 /* ---------- form state ---------- */
 let pattern = "cascade";
+let nBalls = 3;
+let ballColor = "white";
+const selectPattern = (v) => {
+  pattern = v;
+  [...$("pattern").children].forEach((x) => x.classList.toggle("on", x.dataset.v === v));
+};
+// premise: odd ball counts are cascades, even counts are fountains — narrow the
+// pattern choices to what's physically valid for the chosen count
+const applyParity = () => {
+  const odd = nBalls % 2 === 1;
+  [...$("pattern").children].forEach((b) => {
+    const valid = odd ? b.dataset.v === "cascade" : b.dataset.v !== "cascade";
+    b.disabled = !valid;
+  });
+  if (odd) selectPattern("cascade");
+  else if (pattern === "cascade") selectPattern("sync");
+};
 $("pattern").addEventListener("click", (e) => {
   const b = e.target.closest("button");
-  if (!b) return;
-  pattern = b.dataset.v;
-  [...$("pattern").children].forEach((x) => x.classList.toggle("on", x === b));
+  if (!b || b.disabled) return;
+  selectPattern(b.dataset.v);
 });
+$("nballs").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  nBalls = parseInt(b.dataset.v, 10);
+  [...$("nballs").children].forEach((x) => x.classList.toggle("on", x === b));
+  applyParity();
+});
+$("ballcolor").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  ballColor = b.dataset.v;
+  [...$("ballcolor").children].forEach((x) => x.classList.toggle("on", x === b));
+});
+applyParity();
 $("file").addEventListener("change", () => {
   const f = $("file").files[0];
   $("go").disabled = !f;
@@ -538,6 +590,8 @@ $("go").addEventListener("click", async () => {
   const data = new FormData();
   data.set("video", f);
   data.set("pattern", pattern);
+  data.set("n_balls", String(nBalls));
+  data.set("ball_color", ballColor);
   data.set("start", $("start").value || "0");
   if ($("end").value) data.set("end", $("end").value);
   data.set("pose", $("pose").checked ? "true" : "false");
@@ -560,7 +614,7 @@ $("go").addEventListener("click", async () => {
 });
 
 /* ---------- result rendering ---------- */
-const PATTERN_JP = { cascade: "カスケード", sync: "シンクロファウンテン", async: "アンシンクロファウンテン" };
+const PATTERN_JP = { cascade: "カスケード", sync: "シンクロファウンテン", async: "アシンクロファウンテン" };
 
 function sectionLabel(jp, en) {
   const s = el("div", "sec-label");
@@ -798,7 +852,7 @@ const svgEl = (tag, attrs) => {
   for (const k in attrs) n.setAttribute(k, attrs[k]);
   return n;
 };
-const PATTERN_SHORT = { cascade: "カスケード", sync: "シンク", async: "アシンク" };
+const PATTERN_SHORT = { cascade: "カスケード", sync: "シンクロファウンテン", async: "アシンクロファウンテン" };
 const HIST_METRICS = {
   cascade: [
     { key: "score", name: "総合スコア", unit: "点", dir: "up", digits: 1 },
