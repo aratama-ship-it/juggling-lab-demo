@@ -1086,14 +1086,15 @@ function renderTrajectoryFigure(fig) {
   if (!fig || !fig.hands) return null;
   // crop the view to the throws' bounding box (juggling is tall+narrow — the
   // full frame wastes vertical space) with padding for the height labels
-  const pts = [], outPts = [], pathPts = [];
+  const pts = [];
   for (const hand of ["left", "right"]) {
     const hd = fig.hands[hand]; if (!hd) continue;
     for (const t of hd.throws || []) pts.push(t.release, t.apex, t.catch);
-    for (const t of hd.outlier_throws || []) outPts.push(t.release, t.apex, t.catch);
-    for (const p of hd.path || []) pathPts.push(p);
     if (hd.mean) pts.push(hd.mean.release, hd.mean.apex, hd.mean.catch);
     if (hd.mean_track) for (const p of hd.mean_track) pts.push(p);
+    // the averaged hand scoop dips just below the arcs — include it up front so
+    // toggling the 手の動き layer never changes the frame
+    if (hd.mean_path) for (const p of hd.mean_path) pts.push(p);
   }
   if (pts.length < 2) return null;
   const boxOf = (points) => {
@@ -1103,16 +1104,11 @@ function renderTrajectoryFigure(fig) {
     const pX = sX * 0.14, pT = sX * 0.08, pB = sX * 0.06;
     return { x: mnX - pX, y: mnY - pT, w: (mxX - mnX) + 2 * pX, h: (mxY - mnY) + pT + pB };
   };
+  // the frame is computed ONCE and never changes afterwards: toggling layers
+  // (ハズレ値 / 手の動き) must not move or rescale the ball trajectories.
+  // layer content outside the frame is simply clipped by the svg viewport.
   const boxTight = boxOf(pts);
-  // toggled layers (ハズレ値 / 手の動き) can extend past the arcs — widen the
-  // frame to fit whatever layer is currently shown
   let showOut = false, showHand = false;
-  const applyBox = () => {
-    const extra = [];
-    if (showOut) extra.push(...outPts);
-    if (showHand) extra.push(...pathPts);
-    svg.setAttribute("viewBox", vbStr(extra.length ? boxOf(pts.concat(extra)) : boxTight));
-  };
   const vbStr = (b) => `${b.x.toFixed(1)} ${b.y.toFixed(1)} ${b.w.toFixed(1)} ${b.h.toFixed(1)}`;
   const vbX = boxTight.x, vbY = boxTight.y, vbW = boxTight.w, vbH = boxTight.h;
   const S = vbW;
@@ -1241,7 +1237,6 @@ function renderTrajectoryFigure(fig) {
   bOut.addEventListener("click", () => {
     showOut = !showOut;
     gOut.setAttribute("visibility", showOut ? "visible" : "hidden");
-    applyBox();
     bOut.classList.toggle("on", showOut);
   });
 
@@ -1252,7 +1247,6 @@ function renderTrajectoryFigure(fig) {
   bHand.addEventListener("click", () => {
     showHand = !showHand;
     gHand.setAttribute("visibility", showHand ? "visible" : "hidden");
-    applyBox();
     bHand.classList.toggle("on", showHand);
   });
   controls.append(bStage, bFrame, bOut, bHand);
