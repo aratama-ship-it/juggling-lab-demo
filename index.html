@@ -314,10 +314,10 @@ footer { text-align: center; margin-top: 2.2rem; font-family: var(--mono); font-
 #demo-select { flex: 1; font-family: var(--sans); font-weight: 700; font-size: .9rem; color: var(--chalk);
   background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem; cursor: pointer; }
 .demo-list { margin-top: 1.1rem; }
-.demo-list button { display: block; width: 100%; text-align: left; font-family: var(--sans); font-weight: 600;
-  font-size: .82rem; color: var(--chalk); background: var(--ink-2); border: 1px solid var(--line);
-  border-radius: 10px; padding: .62rem .85rem; margin-top: 6px; cursor: pointer; }
-.demo-list button:hover { border-color: var(--amber); color: var(--amber); }
+.demo-list select { display: block; width: 100%; margin-top: 6px; font-family: var(--sans); font-weight: 700;
+  font-size: .9rem; color: var(--chalk); background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: .55rem .7rem; cursor: pointer; color-scheme: dark; }
+.demo-list select:hover { border-color: var(--amber); }
 </style>
 </head>
 <body>
@@ -1326,20 +1326,31 @@ window.renderHandMotion = renderHandMotion; // debug hook
     window.scrollTo(0, 0);
   }
   sel.addEventListener("change", () => show(sel.value));
-  // テスト用: 解析済みサンプル一覧をトップ（アップロード画面）に差し込む
+  // テスト用: 解析済みサンプル一覧（プルダウン）をトップ（アップロード画面）に差し込む
   const list = document.createElement("div");
   list.className = "card demo-list";
   const h = document.createElement("p");
   h.className = "field-label";
   h.textContent = "解析済みサンプル一覧（テスト用）";
   list.append(h);
+  const topSel = document.createElement("select");
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = "サンプルを選んで結果を表示…";
+  ph.disabled = true;
+  ph.selected = true;
+  topSel.append(ph);
   order.forEach((n) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = DATA[n].label;
-    b.addEventListener("click", () => show(n));
-    list.append(b);
+    const o = document.createElement("option");
+    o.value = n;
+    o.textContent = DATA[n].label;
+    topSel.append(o);
   });
+  topSel.addEventListener("change", () => {
+    if (topSel.value) show(topSel.value);
+    topSel.value = "";  // トップへ戻ったときはプレースホルダーに戻す
+  });
+  list.append(topSel);
   const note = document.createElement("p");
   note.className = "seg-note";
   note.textContent = "※テスト版のため、このページでの解析実行（アップロード）はできません。";
