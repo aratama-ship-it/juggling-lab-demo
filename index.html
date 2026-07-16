@@ -79,11 +79,11 @@ main { margin-top: 1.6rem; }
 .seg button.on { background: var(--amber-soft); color: var(--amber); border-color: var(--amber); font-weight: 700; }
 .seg button:disabled { opacity: .3; cursor: not-allowed; }
 .seg .pat-en { display: block; font-family: var(--mono); font-size: .55rem; letter-spacing: .12em; margin-top: .2rem; opacity: .75; }
-#nballs { grid-template-columns: repeat(5, 1fr); }
-#ballcolor { grid-template-columns: repeat(3, 1fr); }
-#ballcolor .sw { display: inline-block; width: .62em; height: .62em; border-radius: 50%;
-  margin-right: .3em; vertical-align: -1px; border: 1px solid #ffffff22; }
-#pattern button { white-space: normal; line-height: 1.35; font-size: .72rem; padding: .6rem .15rem; }
+.form-row { display: grid; grid-template-columns: 1fr 1.7fr; gap: 10px; }
+.sel { width: 100%; font-family: var(--sans); font-weight: 600; font-size: .85rem; color: var(--chalk);
+  background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: .6rem .7rem;
+  color-scheme: dark; cursor: pointer; }
+.sel:disabled { opacity: .4; }
 .seg-note { font-size: .62rem; color: var(--faint); margin: .4rem 0 0; line-height: 1.6; }
 .row { display: flex; gap: .6rem; align-items: center; }
 .range-in { flex: 1; display: flex; align-items: center; gap: .4rem; background: var(--ink-2);
@@ -339,36 +339,40 @@ footer { text-align: center; margin-top: 2.2rem; font-family: var(--mono); font-
           <span class="fname" id="drop-name"></span>
         </label>
 
-        <p class="field-label">ボールの数</p>
-        <div class="seg" id="nballs">
-          <button data-v="3" class="on">3</button>
-          <button data-v="4">4</button>
-          <button data-v="5">5</button>
-          <button data-v="6">6</button>
-          <button data-v="7">7</button>
+        <div class="form-row">
+          <div>
+            <p class="field-label">ボールの数</p>
+            <select id="nballs" class="sel">
+              <option value="3" selected>3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+            </select>
+          </div>
+          <div>
+            <p class="field-label">ボールの色</p>
+            <select id="ballcolor" class="sel">
+              <option value="white" selected>⚪ 白 white</option>
+              <option value="black">⚫ 黒 black</option>
+              <option value="red">🔴 赤 red</option>
+              <option value="yellow">🟡 黄 yellow</option>
+              <option value="blue">🔵 青 blue</option>
+              <option value="green">🟢 緑 green</option>
+              <option value="orange">🟠 オレンジ orange</option>
+              <option value="purple">🟣 紫 purple</option>
+              <option value="other">その他 other</option>
+            </select>
+          </div>
         </div>
 
         <p class="field-label">パターン</p>
-        <div class="seg" id="pattern">
-          <button data-v="cascade" class="on">カスケード<span class="pat-en">cascade</span></button>
-          <button data-v="sync">シンクロファウンテン<span class="pat-en">sync fountain</span></button>
-          <button data-v="async">アシンクロファウンテン<span class="pat-en">async fountain</span></button>
-        </div>
-        <p class="seg-note">奇数＝カスケード／偶数＝ファウンテン（球数に合わせて選択肢が絞られます）</p>
-
-        <p class="field-label">ボールの色</p>
-        <div class="seg" id="ballcolor">
-          <button data-v="white" class="on"><i class="sw" style="background:#f2f0e8"></i>白<span class="pat-en">white</span></button>
-          <button data-v="black"><i class="sw" style="background:#1c1c22;border-color:#666"></i>黒<span class="pat-en">black</span></button>
-          <button data-v="red"><i class="sw" style="background:#d5382f"></i>赤<span class="pat-en">red</span></button>
-          <button data-v="yellow"><i class="sw" style="background:#e0c23a"></i>黄<span class="pat-en">yellow</span></button>
-          <button data-v="blue"><i class="sw" style="background:#3a6fd8"></i>青<span class="pat-en">blue</span></button>
-          <button data-v="green"><i class="sw" style="background:#3f9e52"></i>緑<span class="pat-en">green</span></button>
-          <button data-v="orange"><i class="sw" style="background:#e58a2d"></i>オレンジ<span class="pat-en">orange</span></button>
-          <button data-v="purple"><i class="sw" style="background:#8a56c9"></i>紫<span class="pat-en">purple</span></button>
-          <button data-v="other">その他<span class="pat-en">other</span></button>
-        </div>
-        <p class="seg-note">ボールの色を指定すると検出精度が上がります（背景と違う色を推奨）。「その他」は標準の検出になり精度が落ちることがあります。</p>
+        <select id="pattern" class="sel">
+          <option value="cascade" selected>カスケード（cascade）</option>
+          <option value="sync">シンクロファウンテン（sync fountain）</option>
+          <option value="async">アシンクロファウンテン（async fountain）</option>
+        </select>
+        <p class="seg-note">奇数＝カスケード／偶数＝ファウンテン（球数で選択肢が絞られます）。色の指定で検出精度が上がります（「その他」は標準検出）。</p>
 
         <p class="field-label">解析範囲（秒・空欄で全体）</p>
         <div class="row">
@@ -482,39 +486,23 @@ const keyed = (url) => (authRequired && labKey() ? url + "?key=" + encodeURIComp
 let pattern = "cascade";
 let nBalls = 3;
 let ballColor = "white";
-const selectPattern = (v) => {
-  pattern = v;
-  [...$("pattern").children].forEach((x) => x.classList.toggle("on", x.dataset.v === v));
-};
 // premise: odd ball counts are cascades, even counts are fountains — narrow the
 // pattern choices to what's physically valid for the chosen count
 const applyParity = () => {
   const odd = nBalls % 2 === 1;
-  [...$("pattern").children].forEach((b) => {
-    const valid = odd ? b.dataset.v === "cascade" : b.dataset.v !== "cascade";
-    b.disabled = !valid;
+  [...$("pattern").options].forEach((o) => {
+    o.disabled = odd ? o.value !== "cascade" : o.value === "cascade";
   });
-  if (odd) selectPattern("cascade");
-  else if (pattern === "cascade") selectPattern("sync");
+  if (odd) pattern = "cascade";
+  else if (pattern === "cascade") pattern = "sync";
+  $("pattern").value = pattern;
 };
-$("pattern").addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b || b.disabled) return;
-  selectPattern(b.dataset.v);
-});
-$("nballs").addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
-  nBalls = parseInt(b.dataset.v, 10);
-  [...$("nballs").children].forEach((x) => x.classList.toggle("on", x === b));
+$("nballs").addEventListener("change", () => {
+  nBalls = parseInt($("nballs").value, 10) || 3;
   applyParity();
 });
-$("ballcolor").addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
-  ballColor = b.dataset.v;
-  [...$("ballcolor").children].forEach((x) => x.classList.toggle("on", x === b));
-});
+$("pattern").addEventListener("change", () => { pattern = $("pattern").value; });
+$("ballcolor").addEventListener("change", () => { ballColor = $("ballcolor").value; });
 applyParity();
 $("file").addEventListener("change", () => {
   const f = $("file").files[0];
