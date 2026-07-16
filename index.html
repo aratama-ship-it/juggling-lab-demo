@@ -80,7 +80,9 @@ main { margin-top: 1.6rem; }
 .seg button:disabled { opacity: .3; cursor: not-allowed; }
 .seg .pat-en { display: block; font-family: var(--mono); font-size: .55rem; letter-spacing: .12em; margin-top: .2rem; opacity: .75; }
 #nballs { grid-template-columns: repeat(5, 1fr); }
-#ballcolor { grid-template-columns: repeat(2, 1fr); }
+#ballcolor { grid-template-columns: repeat(3, 1fr); }
+#ballcolor .sw { display: inline-block; width: .62em; height: .62em; border-radius: 50%;
+  margin-right: .3em; vertical-align: -1px; border: 1px solid #ffffff22; }
 #pattern button { white-space: normal; line-height: 1.35; font-size: .72rem; padding: .6rem .15rem; }
 .seg-note { font-size: .62rem; color: var(--faint); margin: .4rem 0 0; line-height: 1.6; }
 .row { display: flex; gap: .6rem; align-items: center; }
@@ -356,10 +358,17 @@ footer { text-align: center; margin-top: 2.2rem; font-family: var(--mono); font-
 
         <p class="field-label">ボールの色</p>
         <div class="seg" id="ballcolor">
-          <button data-v="white" class="on">白<span class="pat-en">white</span></button>
-          <button data-v="red">赤<span class="pat-en">red</span></button>
+          <button data-v="white" class="on"><i class="sw" style="background:#f2f0e8"></i>白<span class="pat-en">white</span></button>
+          <button data-v="black"><i class="sw" style="background:#1c1c22;border-color:#666"></i>黒<span class="pat-en">black</span></button>
+          <button data-v="red"><i class="sw" style="background:#d5382f"></i>赤<span class="pat-en">red</span></button>
+          <button data-v="yellow"><i class="sw" style="background:#e0c23a"></i>黄<span class="pat-en">yellow</span></button>
+          <button data-v="blue"><i class="sw" style="background:#3a6fd8"></i>青<span class="pat-en">blue</span></button>
+          <button data-v="green"><i class="sw" style="background:#3f9e52"></i>緑<span class="pat-en">green</span></button>
+          <button data-v="orange"><i class="sw" style="background:#e58a2d"></i>オレンジ<span class="pat-en">orange</span></button>
+          <button data-v="purple"><i class="sw" style="background:#8a56c9"></i>紫<span class="pat-en">purple</span></button>
+          <button data-v="other">その他<span class="pat-en">other</span></button>
         </div>
-        <p class="seg-note">ボールの色を指定すると検出精度が上がります（背景と違う色を推奨）</p>
+        <p class="seg-note">ボールの色を指定すると検出精度が上がります（背景と違う色を推奨）。「その他」は標準の検出になり精度が落ちることがあります。</p>
 
         <p class="field-label">解析範囲（秒・空欄で全体）</p>
         <div class="row">
