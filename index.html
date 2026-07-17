@@ -117,7 +117,14 @@ main { margin-top: 1.6rem; }
 @keyframes bx { from { transform: translateX(0); } to { transform: translateX(184px); } }
 @keyframes by { from { transform: translateY(0); } to { transform: translateY(-64px); } }
 .prog .stage-txt { font-family: var(--serif); font-size: .95rem; letter-spacing: .12em; min-height: 1.6em; }
-.prog .elapsed { font-family: var(--mono); font-size: .72rem; color: var(--faint); margin-top: .55rem; }
+.prog .gauge { max-width: 280px; margin: 1.3rem auto 0; }
+.prog .bar { height: 9px; border-radius: 999px; background: var(--ink-2); border: 1px solid var(--line); overflow: hidden; }
+.prog .bar > i { display: block; height: 100%; width: 0%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--amber), #f0c674); transition: width .35s cubic-bezier(.4,0,.2,1); }
+.prog .gauge-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: .6rem; }
+.prog .pct { font-family: var(--mono); font-weight: 700; font-size: 1.15rem; color: var(--chalk); }
+.prog .remain { font-family: var(--mono); font-size: .72rem; color: var(--faint); }
+.prog .elapsed { font-family: var(--mono); font-size: .66rem; color: var(--faint); margin-top: .5rem; opacity: .7; }
 
 /* ---------- results ---------- */
 .summary { border-left: 3px solid var(--amber); background: linear-gradient(160deg, #221d24, var(--card)); }
@@ -462,7 +469,14 @@ footer { text-align: center; margin-top: 2.2rem; font-family: var(--mono); font-
           <div class="ballx"><div class="bally"></div></div>
         </div>
         <p class="stage-txt" id="stage-txt">動画を送っています…</p>
-        <p class="elapsed" id="elapsed">0.0 s</p>
+        <div class="gauge">
+          <div class="bar"><i id="prog-fill"></i></div>
+          <div class="gauge-row">
+            <span class="pct" id="prog-pct">0%</span>
+            <span class="remain" id="prog-remain">残り時間を見積もり中…</span>
+          </div>
+        </div>
+        <p class="elapsed" id="elapsed">0.0 s 経過</p>
       </div>
     </section>
 
@@ -563,31 +577,79 @@ $("file").addEventListener("change", () => {
 })();
 
 /* ---------- progress ---------- */
-const CAPTIONS = [
-  "ボールを探しています…",
-  "軌道をつないでいます…",
-  "放物線をフィット中…",
-  "姿勢を推定しています…",
-  "リズムを数えています…",
-  "コメントを書いています…",
+// caption bands keyed to progress fraction, so the text only ever moves FORWARD
+// (the old modulo-cycling made it jump back and forth, which read as a bug)
+const STAGE_BANDS = [
+  [0.00, "動画を送っています…"],
+  [0.12, "ボールを探しています…"],
+  [0.32, "軌道をつないでいます…"],
+  [0.55, "姿勢を推定しています…"],
+  [0.78, "リズムを計測しています…"],
+  [0.92, "仕上げています…"],
 ];
+function stageFor(frac) {
+  let label = STAGE_BANDS[0][1];
+  for (const [th, txt] of STAGE_BANDS) if (frac >= th) label = txt;
+  return label;
+}
+
+// read a picked video's duration client-side (metadata only) so we can size the
+// ETA; resolves null if it can't be read (we fall back to a default length)
+function videoDuration(file) {
+  return new Promise((resolve) => {
+    try {
+      const v = document.createElement("video");
+      v.preload = "metadata";
+      v.onloadedmetadata = () => { const d = v.duration; URL.revokeObjectURL(v.src); resolve(isFinite(d) ? d : null); };
+      v.onerror = () => { resolve(null); };
+      v.src = URL.createObjectURL(file);
+    } catch (_) { resolve(null); }
+  });
+}
+
+// measured on this machine: processing ≈ 3s base + 0.65s per second of analysed
+// video (3-ball 25.2s→16.2s, 5-ball 18.1s→11.8s). Estimate a bit generously so
+// the bar tends to finish EARLY rather than stall at "残り0秒".
+function estimateSeconds(spanSec) {
+  return 3 + 0.72 * Math.max(1, Math.min(spanSec || 20, 120));
+}
+
 let timer = null;
-function showProgress(on) {
+function showProgress(on, estSec) {
   $("upload-view").hidden = on;
   $("progress-view").hidden = !on;
-  if (on) {
-    const t0 = performance.now();
-    let i = 0;
-    $("stage-txt").textContent = "動画を送っています…";
-    timer = setInterval(() => {
-      const s = (performance.now() - t0) / 1000;
-      $("elapsed").textContent = s.toFixed(1) + " s";
-      if (s > 2 && Math.floor(s) % 4 === 0) {
-        $("stage-txt").textContent = CAPTIONS[i % CAPTIONS.length];
-        i++;
-      }
-    }, 100);
-  } else if (timer) { clearInterval(timer); timer = null; }
+  if (timer) { clearInterval(timer); timer = null; }
+  if (!on) return;
+  const est = estSec || 18;
+  const t0 = performance.now();
+  const fill = $("prog-fill"), pct = $("prog-pct"), remain = $("prog-remain"), elapsed = $("elapsed"), stage = $("stage-txt");
+  fill.style.width = "0%"; pct.textContent = "0%"; stage.textContent = STAGE_BANDS[0][1];
+  remain.textContent = "残り 約" + Math.ceil(est) + " 秒";
+  timer = setInterval(() => {
+    const s = (performance.now() - t0) / 1000;
+    elapsed.textContent = s.toFixed(1) + " s 経過";
+    // fraction climbs toward — but never reaches — 100% while we wait on the
+    // server: linear to 92% over the estimate, then asymptotic so a slower-than-
+    // expected run keeps inching up instead of freezing or lying about "done"
+    let frac;
+    if (s <= est) {
+      frac = 0.92 * (s / est);
+      remain.textContent = "残り 約" + Math.max(1, Math.ceil(est - s)) + " 秒";
+    } else {
+      frac = 0.92 + 0.07 * (1 - Math.exp(-(s - est) / est));
+      remain.textContent = "まもなく完了…";
+    }
+    const shown = Math.min(0.99, frac);
+    fill.style.width = (shown * 100).toFixed(1) + "%";
+    pct.textContent = Math.round(shown * 100) + "%";
+    stage.textContent = stageFor(shown);
+  }, 100);
+}
+// snap the gauge to 100% for a beat before the result view swaps in
+function finishProgress() {
+  if (timer) { clearInterval(timer); timer = null; }
+  const fill = $("prog-fill");
+  if (fill) { fill.style.width = "100%"; $("prog-pct").textContent = "100%"; $("prog-remain").textContent = "完了"; }
 }
 
 /* ---------- submit ---------- */
@@ -607,11 +669,17 @@ $("go").addEventListener("click", async () => {
     data.set("key", labKey());
     localStorage.setItem("lab_key", labKey());
   }
-  showProgress(true);
+  // size the ETA from the picked video's analysed span (honours start/end)
+  const dur = await videoDuration(f);
+  const start = parseFloat($("start").value) || 0;
+  const end = $("end").value ? parseFloat($("end").value) : (dur || 20);
+  const span = Math.max(1, (isFinite(end) ? end : (dur || 20)) - start);
+  showProgress(true, estimateSeconds(span));
   try {
     const res = await fetch("/analyze", { method: "POST", body: data });
     const json = await res.json();
     if (!res.ok) throw new Error(json.detail || ("HTTP " + res.status));
+    finishProgress();
     showProgress(false);
     renderResult(json);
   } catch (err) {
