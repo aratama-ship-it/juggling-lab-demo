@@ -1354,6 +1354,29 @@ window.renderHandMotion = renderHandMotion; // debug hook
     window.scrollTo(0, 0);
   }
   sel.addEventListener("change", () => show(sel.value));
+  // テスト版: 解析サーバーが無いので「解析する」「感想送信」を本物のエラー
+  // （Failed to fetch）ではなく案内メッセージに差し替える。capture段階で
+  // 止めることで、先に登録済みの本来のsubmitハンドラへ届く前に横取りする
+  const intercept = (id, fn) => document.addEventListener("click", (e) => {
+    const btn = byId(id);
+    if (btn && !btn.disabled && (e.target === btn || btn.contains(e.target))) {
+      e.stopPropagation(); e.preventDefault(); fn();
+    }
+  }, true);
+  intercept("go", () => {
+    const err = byId("err");
+    err.hidden = false;
+    err.textContent = "テスト版のため、このページでの解析実行はできません（解析サーバー未接続）。下の「解析済みサンプル一覧」から結果をご覧ください。";
+    const dl = document.querySelector(".demo-list");
+    if (dl) dl.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  intercept("fb-send", () => {
+    const m = byId("fb-msg");
+    if (!m) return;
+    m.hidden = false;
+    m.classList.remove("err-msg");
+    m.textContent = "テスト版のため、このページから感想は送信できません。お手数ですが送り主へ直接お願いします。";
+  });
   // テスト用: 解析済みサンプル一覧（プルダウン）をトップ（アップロード画面）に差し込む
   const list = document.createElement("div");
   list.className = "card demo-list";
