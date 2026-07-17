@@ -91,6 +91,14 @@ main { margin-top: 1.6rem; }
 .range-in input { width: 100%; background: none; border: none; color: var(--chalk);
   font-family: var(--mono); font-size: .95rem; outline: none; }
 .range-in span { font-size: .7rem; color: var(--faint); white-space: nowrap; }
+/* in-form video trimmer: scrub the picked clip, set start/end from playhead */
+#trim { margin-top: .7rem; }
+#trim video { width: 100%; max-height: 300px; border-radius: 10px; background: #000; display: block; }
+.trim-row { display: flex; align-items: center; gap: .5rem; margin-top: .55rem; }
+.trim-row button { flex: 1; font-family: var(--sans); font-weight: 600; font-size: .78rem; color: var(--chalk);
+  background: var(--ink-2); border: 1px solid var(--line); border-radius: 9px; padding: .5rem .5rem; cursor: pointer; }
+.trim-row button:hover { border-color: var(--amber); color: var(--amber); }
+.trim-row .trim-time { font-family: var(--mono); font-size: .82rem; color: var(--dim); min-width: 4.6em; text-align: center; }
 .toggle { display: flex; justify-content: space-between; align-items: center; margin-top: 1.05rem; }
 .toggle .t-label { font-size: .82rem; }
 .toggle .t-sub { display:block; font-size: .66rem; color: var(--faint); margin-top: .15rem; }
@@ -397,6 +405,15 @@ footer { text-align: center; margin-top: 2.2rem; font-family: var(--mono); font-
           <div class="range-in"><input id="start" type="number" inputmode="decimal" placeholder="0" min="0" step="0.5"><span>から</span></div>
           <div class="range-in"><input id="end" type="number" inputmode="decimal" placeholder="末尾" min="0" step="0.5"><span>まで</span></div>
         </div>
+        <div id="trim" hidden>
+          <video id="trim-video" controls playsinline preload="metadata" muted></video>
+          <div class="trim-row">
+            <button type="button" id="trim-start">▏ここを開始に</button>
+            <span class="trim-time" id="trim-time">0.0s</span>
+            <button type="button" id="trim-end">ここを終了に▕</button>
+          </div>
+          <p class="seg-note">動画を再生し、ジャグリングしている区間だけを開始／終了に設定できます（ウォームアップや構えの時間を除けます）。空欄なら全体を解析します。</p>
+        </div>
 
         <div class="toggle">
           <div>
@@ -529,12 +546,41 @@ $("nballs").addEventListener("change", () => {
 $("pattern").addEventListener("change", () => { pattern = $("pattern").value; });
 $("ballcolor").addEventListener("change", () => { ballColor = $("ballcolor").value; });
 applyParity();
+
+// in-form trimmer: preview the picked clip and set start/end from the playhead
+let trimURL = null;
+const trimVideo = $("trim-video");
+function loadTrimmer(f) {
+  if (trimURL) { URL.revokeObjectURL(trimURL); trimURL = null; }
+  if (!f) { $("trim").hidden = true; trimVideo.removeAttribute("src"); trimVideo.load(); return; }
+  trimURL = URL.createObjectURL(f);
+  trimVideo.src = trimURL;
+  $("trim").hidden = false;
+}
+if (trimVideo) {
+  const fmt = (t) => (isFinite(t) ? t.toFixed(1) : "0.0") + "s";
+  trimVideo.addEventListener("timeupdate", () => { $("trim-time").textContent = fmt(trimVideo.currentTime); });
+  trimVideo.addEventListener("loadedmetadata", () => { $("trim-time").textContent = fmt(0); });
+  $("trim-start").addEventListener("click", () => {
+    $("start").value = trimVideo.currentTime.toFixed(1);
+    if ($("end").value && parseFloat($("end").value) <= trimVideo.currentTime) $("end").value = "";
+  });
+  $("trim-end").addEventListener("click", () => { $("end").value = trimVideo.currentTime.toFixed(1); });
+  // typing a bound seeks the preview so the tester can confirm the frame
+  const seekTo = (v) => { const t = parseFloat(v); if (isFinite(t) && trimVideo.duration) trimVideo.currentTime = Math.min(t, trimVideo.duration); };
+  $("start").addEventListener("change", () => seekTo($("start").value));
+  $("end").addEventListener("change", () => seekTo($("end").value));
+}
+
 $("file").addEventListener("change", () => {
   const f = $("file").files[0];
   $("go").disabled = !f;
   $("drop").classList.toggle("has-file", !!f);
   $("drop-big").textContent = f ? "選択済み" : "動画を選ぶ";
   $("drop-name").textContent = f ? `${f.name}（${(f.size / 1048576).toFixed(1)} MB）` : "";
+  // reset any prior range when a new clip is chosen, then show its trimmer
+  $("start").value = ""; $("end").value = "";
+  loadTrimmer(f);
 });
 
 /* ---------- feedback (beta) ---------- */
