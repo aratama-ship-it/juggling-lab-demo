@@ -155,6 +155,10 @@ main { margin-top: 1.6rem; }
 .chip.c-継続 { color: var(--good); border-color: #8fb97755; background: #8fb9771f; }
 .chip.c-前回比, .chip.c-記録 { color: var(--chalk); border-color: var(--faint); background: var(--ink-2); }
 .comment p { font-size: .84rem; line-height: 1.95; color: #d9d5cc; }
+/* coaching notes live in ONE card as hairline-separated rows (never splits) */
+.coach .coach-row { padding: .7rem 0; border-top: 1px solid var(--line); }
+.coach .coach-row:first-child { border-top: 0; padding-top: .1rem; }
+.coach .coach-row:last-child { padding-bottom: .1rem; }
 
 .compare { border: 1px solid #e9a63e40; background: linear-gradient(160deg, #241f1a, var(--card)); }
 .delta-row { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .7rem; }
@@ -671,11 +675,13 @@ function statTiles(m) {
   const tilt = ((m.spatial || {}).gravity_tilt) || {};
   if (tilt.tilt_deg != null) {
     const raw = tilt.corrected ? tilt.correction_deg : tilt.tilt_deg;
-    const dir = raw > 0 ? "左下がり" : "右下がり";
+    // sign convention verified against the shoulder line from pose data:
+    // tilt_deg > 0 = gravity leans image-right = 映像が左下がり
+    const dir = raw > 0 ? "／ 左下がり" : "＼ 右下がり";
     let note;
     if (tilt.corrected) note = `${dir}だったため水平化補正して解析済み`;
-    else if (tilt.status !== "ok") note = "参考値（投数が少なく推定が不安定）";
-    else if (Math.abs(raw) < 0.5) note = "ほぼ水平（誤差範囲）";
+    else if (tilt.status !== "ok") note = `${dir}・参考値（投数が少なく推定が不安定）`;
+    else if (Math.abs(raw) < 0.5) note = `ほぼ水平（ごくわずかに${raw > 0 ? "左下がり" : "右下がり"}）`;
     else if (tilt.warn) note = `${dir}・大きめです（撮り直し推奨）`;
     else note = `${dir}（軌道の重力方向から推定）`;
     add("画面の傾き", Math.abs(raw).toFixed(1), "°", note);
@@ -799,16 +805,19 @@ function renderResult(json) {
     view.append(stagger(card));
   }
 
-  // coaching comments
+  // coaching comments — ONE card with all notes as rows, so the desktop
+  // two-column layout can never split the section into a left/right half
   const rest = (report.comments || []).filter((c) => c.topic !== "前回比" && c.topic !== "記録");
   if (rest.length) {
     view.append(sectionLabel("コーチングメモ", "coaching notes"));
+    const card = el("div", "card coach reveal");
     for (const c of rest) {
-      const card = el("div", "card comment reveal");
-      card.append(el("span", "chip c-" + c.topic, c.topic));
-      card.append(el("p", null, c.text));
-      view.append(stagger(card));
+      const row = el("div", "comment coach-row");
+      row.append(el("span", "chip c-" + c.topic, c.topic));
+      row.append(el("p", null, c.text));
+      card.append(row);
     }
+    view.append(stagger(card));
   }
 
   // cautions
